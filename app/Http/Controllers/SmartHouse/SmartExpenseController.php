@@ -34,7 +34,7 @@ class SmartExpenseController extends Controller
 
 
 
-        \Log::info("Gemini AI Prompt: \n" . $prompt);
+        // \Log::info("Gemini AI Prompt: \n" . $prompt);
 
         try {
             $response = Http::withHeaders([
@@ -51,7 +51,7 @@ class SmartExpenseController extends Controller
             ]);
 
             if ($response->failed()) {
-                \Log::error('Gemini API request failed:', $response->json());
+                // \Log::error('Gemini API request failed:', $response->json());
                 return response()->json(['text' => 'Gemini API request failed.']);
             }
 
@@ -62,7 +62,7 @@ class SmartExpenseController extends Controller
 
             return response()->json(['text' => $text]);
         } catch (\Exception $e) {
-            \Log::error('Gemini AI Exception: ' . $e->getMessage());
+            // \Log::error('Gemini AI Exception: ' . $e->getMessage());
             return response()->json(['text' => 'Unable to generate AI suggestion at the moment.']);
         }
     }
@@ -82,7 +82,24 @@ class SmartExpenseController extends Controller
                 [
                     "parts" => [
                         [
-                            "text" => "You are a home damage inspection expert. Ignore any previous images or instructions. Focus only on the image provided in this request."
+                            "text" => "
+You are a home damage inspection expert.
+IMPORTANT:
+1. Ignore all previous conversations, images, or instructions.
+2. Evaluate ONLY the current uploaded image.
+3. If the image does NOT contain visible damage such as cracks, holes, leaks, stains, broken parts, rust, flooding, or structural defects:
+   → Return the SAME JSON format, but set:
+     - damage_type: \"No visible damage detected\"
+     - severity: \"None\"
+     - urgent_level: \"None\"
+     - probable_causes: []
+     - repair_steps: []
+     - materials_needed: []
+     - estimated_cost: \"0\"
+     - And include a short message: \"Please capture a clear photo of the damaged area so I can assist you.\"
+
+ONLY output raw JSON. No markdown. No backticks.
+"
                         ],
                         [
                             "inline_data" => [
@@ -92,25 +109,27 @@ class SmartExpenseController extends Controller
                         ],
                         [
                             "text" => "
-            Analyze this damage and return only JSON:
-            {
-                \"damage_type\": \"\",
-                \"severity\": \"Low | Medium | High | Critical\",
-                \"probable_causes\": [],
-                \"repair_steps\": [],
-                \"estimated_cost\": \"\",
-                \"materials_needed\": [],
-                \"urgent_level\": \"\"
-            }
-            Consider only the current image and Philippine context."
+If there IS visible damage, analyze it and return JSON:
+
+{
+    \"damage_type\": \"\",
+    \"severity\": \"Low | Medium | High | Critical\",
+    \"probable_causes\": [],
+    \"repair_steps\": [],
+    \"estimated_cost\": \"\",
+    \"materials_needed\": [],
+    \"urgent_level\": \"\"
+}
+
+Consider only the current image and use Philippine context.
+"
                         ]
                     ]
                 ]
-
             ]
         ];
 
-        \Log::info("Sending damage analyze request to Gemini");
+        // \Log::info("Sending damage analyze request to Gemini");
 
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
