@@ -40,6 +40,7 @@ Route::middleware(['auth:api'])->group(function () {
         Route::get('/smart/expenses/weekly', [ExpenseController::class, 'weeklySpending']);
         // AI suggestion
         Route::post('/smart/expenses/ai-suggestion', [SmartExpenseController::class, 'aiSuggestion']);
+        Route::post('/smart/camera/damage-analyze', [SmartExpenseController::class, 'analyzeDamage']);
 
 
         Route::post('/smart/expenses/{id}', [ExpenseController::class, 'update']);

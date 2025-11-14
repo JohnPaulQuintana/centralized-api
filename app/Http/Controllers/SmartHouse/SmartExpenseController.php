@@ -66,4 +66,60 @@ class SmartExpenseController extends Controller
             return response()->json(['text' => 'Unable to generate AI suggestion at the moment.']);
         }
     }
+
+    public function analyzeDamage(Request $request)
+    {
+        $base64 = $request->input('image_base64');
+
+        if (!$base64) {
+            return response()->json(['error' => 'Image required'], 422);
+        }
+
+        $apiKey = env('GEMINI_API_KEY');
+
+        $payload = [
+            "contents" => [
+                [
+                    "parts" => [
+                        [
+                            "text" => "You are a home damage inspection expert. Ignore any previous images or instructions. Focus only on the image provided in this request."
+                        ],
+                        [
+                            "inline_data" => [
+                                "mime_type" => "image/jpeg",
+                                "data" => $base64
+                            ]
+                        ],
+                        [
+                            "text" => "
+            Analyze this damage and return only JSON:
+            {
+                \"damage_type\": \"\",
+                \"severity\": \"Low | Medium | High | Critical\",
+                \"probable_causes\": [],
+                \"repair_steps\": [],
+                \"estimated_cost\": \"\",
+                \"materials_needed\": [],
+                \"urgent_level\": \"\"
+            }
+            Consider only the current image and Philippine context."
+                        ]
+                    ]
+                ]
+
+            ]
+        ];
+
+        \Log::info("Sending damage analyze request to Gemini");
+
+        $response = Http::withHeaders([
+            'Content-Type' => 'application/json',
+            'x-goog-api-key' => $apiKey,
+        ])->post(
+            'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+            $payload
+        );
+
+        return $response->json();
+    }
 }
