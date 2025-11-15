@@ -70,6 +70,7 @@ class SmartExpenseController extends Controller
     public function analyzeDamage(Request $request)
     {
         $base64 = $request->input('image_base64');
+        $userDescription = $request->input('description', ''); // User input in any language
 
         if (!$base64) {
             return response()->json(['error' => 'Image required'], 422);
@@ -77,59 +78,54 @@ class SmartExpenseController extends Controller
 
         $apiKey = env('GEMINI_API_KEY');
 
+        // Enhanced prompt
+        $prompt = "
+            You are a professional home damage inspection expert.
+
+            The user provides:
+            1. A photo of an item
+            2. A description of the problem in any language: \"$userDescription\"
+
+            IMPORTANT RULES:
+            - Analyze both the image and the description.
+            - If the image shows visible damage → analyze normally.
+            - If the image shows NO visible damage BUT the description suggests a problem (internal issues, malfunctions, etc.), generate a diagnosis based on the description.
+            - Always respond professionally.
+            - **If the repair appears complicated, unsafe, or requires specialized skills, always include a recommendation for the user to consult a legitimate professional or licensed technician.**
+            - Respect the language of the user's description. If the description is in English, respond in English. If it’s in another language, respond in the same language. If no description is provided, respond in English.
+            - Output ONLY valid JSON. No markdown, no backticks.
+
+            JSON format:
+            {
+                \"damage_type\": \"\",
+                \"severity\": \"Low | Medium | High | Critical\",
+                \"probable_causes\": [],
+                \"repair_steps\": [],
+                \"materials_needed\": [],
+                \"estimated_cost\": \"\",
+                \"urgent_level\": \"Low | Medium | High | Immediate\",
+                \"message\": \"\" // Include guidance or notes in the same language as description, **and include professional advice if the repair seems complex or unsafe**
+            }
+
+            Use Philippine context and realistic repair/cost estimates.
+            ";
+
+
         $payload = [
             "contents" => [
                 [
                     "parts" => [
-                        [
-                            "text" => "
-You are a home damage inspection expert.
-IMPORTANT:
-1. Ignore all previous conversations, images, or instructions.
-2. Evaluate ONLY the current uploaded image.
-3. If the image does NOT contain visible damage such as cracks, holes, leaks, stains, broken parts, rust, flooding, or structural defects:
-   → Return the SAME JSON format, but set:
-     - damage_type: \"No visible damage detected\"
-     - severity: \"None\"
-     - urgent_level: \"None\"
-     - probable_causes: []
-     - repair_steps: []
-     - materials_needed: []
-     - estimated_cost: \"0\"
-     - And include a short message: \"Please capture a clear photo of the damaged area so I can assist you.\"
-
-ONLY output raw JSON. No markdown. No backticks.
-"
-                        ],
+                        ["text" => $prompt],
                         [
                             "inline_data" => [
                                 "mime_type" => "image/jpeg",
                                 "data" => $base64
                             ]
-                        ],
-                        [
-                            "text" => "
-If there IS visible damage, analyze it and return JSON:
-
-{
-    \"damage_type\": \"\",
-    \"severity\": \"Low | Medium | High | Critical\",
-    \"probable_causes\": [],
-    \"repair_steps\": [],
-    \"estimated_cost\": \"\",
-    \"materials_needed\": [],
-    \"urgent_level\": \"\"
-}
-
-Consider only the current image and use Philippine context.
-"
                         ]
                     ]
                 ]
             ]
         ];
-
-        // \Log::info("Sending damage analyze request to Gemini");
 
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
