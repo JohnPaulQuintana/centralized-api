@@ -21,7 +21,7 @@ class Bus extends Model
         return $this->hasMany(BusPath::class);
     }
 
-    // Get latest position
+    // Get latest position1
     public function getCurrentPositionAttribute()
     {
         return $this->paths()->latest()->first();

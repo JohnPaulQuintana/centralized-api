@@ -37,65 +37,55 @@ class BusController extends Controller
     public function tracking($id)
     {
         try {
-            // \Log::info('=== BUS TRACKING REQUEST START ===');
-            // \Log::info('Bus ID requested: ' . $id);
-
-            // Log the raw database query
-            // \Log::info('Fetching bus with ID: ' . $id);
-
-            $bus = Bus::with(['paths' => function ($query) {
-                // \Log::info('Loading paths relationship with query');
-                $query->orderBy('created_at', 'desc')->limit(50);
-            }])->find($id);
+            $bus = Bus::find($id);
 
             if (!$bus) {
-                // \Log::warning('Bus not found with ID: ' . $id);
                 return response()->json([
                     'success' => false,
                     'message' => 'Bus not found'
                 ], 404);
             }
 
-            // \Log::info('Bus found:', [
-            //     'id' => $bus->id,
-            //     'bus_name' => $bus->bus_name,
-            //     'driver_name' => $bus->driver_name,
-            //     'license_plate' => $bus->license_plate,
-            //     'is_active' => $bus->is_active
-            // ]);
+            // Get the ABSOLUTE latest position based on created_at
+            $currentPosition = $bus->paths()
+                ->orderBy('created_at', 'desc')
+                ->first();
 
-            // Check if paths relationship is loaded
-            // \Log::info('Checking paths relationship...');
-            // \Log::info('Paths count (eager loaded): ' . $bus->paths->count());
-
-            // Get latest position using fresh query
-            // \Log::info('Getting latest position...');
-            $currentPosition = $bus->paths()->latest()->first();
-
-            // if ($currentPosition) {
-            //     \Log::info('Current position found:', [
-            //         'latitude' => $currentPosition->latitude,
-            //         'longitude' => $currentPosition->longitude,
-            //         'speed' => $currentPosition->speed,
-            //         'passenger_count' => $currentPosition->passenger_count,
-            //         'created_at' => $currentPosition->created_at
-            //     ]);
-            // } else {
-            //     \Log::info('No current position found for bus ID: ' . $id);
-            // }
-
-            // Get path travelled
-            // \Log::info('Getting path travelled (last 50 points)...');
+            // Get path travelled in chronological order (oldest to newest)
             $pathTravelled = $bus->paths()
                 ->orderBy('created_at', 'asc')
+                ->limit(50)
                 ->get(['latitude as lat', 'longitude as long', 'speed', 'passenger_count']);
 
-            // \Log::info('Path travelled count: ' . $pathTravelled->count());
+            // If we have a current position but it's not the last in path_travelled,
+            // we need to add it to path_travelled (but only if it's different from the last one)
+            $pathArray = $pathTravelled->map(function ($point) {
+                return [
+                    'lat' => (float) $point->lat,
+                    'long' => (float) $point->long,
+                    'speed' => (float) $point->speed,
+                    'passenger_count' => $point->passenger_count
+                ];
+            })->toArray();
 
-            // if ($pathTravelled->count() > 0) {
-            //     \Log::info('First path point:', $pathTravelled->first()->toArray());
-            //     \Log::info('Last path point:', $pathTravelled->last()->toArray());
-            // }
+            // Add current position to the end of path_travelled if it exists
+            if ($currentPosition) {
+                $currentPoint = [
+                    'lat' => (float) $currentPosition->latitude,
+                    'long' => (float) $currentPosition->longitude,
+                    'speed' => (float) $currentPosition->speed,
+                    'passenger_count' => $currentPosition->passenger_count
+                ];
+
+                // Only add if it's different from the last point in path_travelled
+                if (
+                    empty($pathArray) ||
+                    $pathArray[count($pathArray) - 1]['lat'] !== $currentPoint['lat'] ||
+                    $pathArray[count($pathArray) - 1]['long'] !== $currentPoint['long']
+                ) {
+                    $pathArray[] = $currentPoint;
+                }
+            }
 
             // Format response
             $response = [
@@ -111,23 +101,8 @@ class BusController extends Controller
                     'passenger_count' => $currentPosition->passenger_count,
                     'updated_at' => $currentPosition->created_at ? $currentPosition->created_at->toISOString() : null
                 ] : null,
-                'path_travelled' => $pathTravelled->map(function ($point) {
-                    return [
-                        'lat' => (float) $point->lat,
-                        'long' => (float) $point->long,
-                        'speed' => (float) $point->speed,
-                        'passenger_count' => $point->passenger_count
-                    ];
-                })
+                'path_travelled' => $pathArray
             ];
-
-            // \Log::info('Response being sent:', [
-            //     'has_current_position' => !is_null($response['current_position']),
-            //     'path_travelled_count' => count($response['path_travelled']),
-            //     'response_keys' => array_keys($response)
-            // ]);
-
-            // \Log::info('=== BUS TRACKING REQUEST END ===');
 
             return response()->json([
                 'success' => true,
