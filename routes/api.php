@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Bus\BusController;
+use App\Http\Controllers\Bus\StopController;
 use App\Http\Controllers\SmartHouse\ExpenseController;
 use App\Http\Controllers\SmartHouse\SmartExpenseController;
 use Illuminate\Http\Request;
@@ -19,6 +21,21 @@ Route::get('/test', function () {
 Route::post('/auth/google-login', [AuthController::class, 'googleLogin']);
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
+
+// busses app public for now
+// Bus endpoints
+Route::get('/buses', [BusController::class, 'index']);
+Route::get('/buses/{id}/tracking', [BusController::class, 'tracking']);
+Route::post('/buses/{id}/location', [BusController::class, 'updateLocation']);
+Route::get('/buses/{id}/history', [BusController::class, 'locationHistory']);
+Route::post('/buses', [BusController::class, 'store']);
+Route::post('/buses/{id}', [BusController::class, 'update']);
+
+// Stop endpoints
+Route::get('/stops', [StopController::class, 'index']);
+Route::post('/stops', [StopController::class, 'store']);
+Route::put('/stops/{id}', [StopController::class, 'update']);
+Route::delete('/stops/{id}', [StopController::class, 'destroy']);
 
 Route::middleware(['auth:api'])->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
@@ -45,6 +62,5 @@ Route::middleware(['auth:api'])->group(function () {
 
         Route::post('/smart/expenses/{id}', [ExpenseController::class, 'update']);
         Route::delete('/smart/expenses/{id}', [ExpenseController::class, 'destroy']);
-
     });
 });
