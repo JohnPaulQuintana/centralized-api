@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Bus\BusController;
 use App\Http\Controllers\Bus\StopController;
+use App\Http\Controllers\Bus\UserController;
 use App\Http\Controllers\SmartHouse\ExpenseController;
 use App\Http\Controllers\SmartHouse\SmartExpenseController;
 use Illuminate\Http\Request;
@@ -73,5 +74,9 @@ Route::middleware(['auth:api'])->group(function () {
 
         //bus user update info
         Route::post('/update/info', [AuthController::class, 'updateProfile']);
+
+        //admin get users
+        Route::get('/bta/users', [UserController::class, 'index']);
+        Route::post('/bta/direct/password', [AuthController::class, 'directChangePassword']);
     });
 });

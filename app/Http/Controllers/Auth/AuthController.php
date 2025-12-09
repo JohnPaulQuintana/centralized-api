@@ -41,7 +41,15 @@ class AuthController extends Controller
     // bus trackker login
     public function bus_login(Request $request)
     {
+        \Log::warning('Password reset attempt failed', [
+            'credentials' => $request->only('email', 'password'),
+            'password' => $request->password,
+            'ip' => $request->ip(),
+            'time' => now()
+        ]);
+
         $credentials = $request->only('email', 'password');
+
         // Attempt login and generate token
         if (!$token = JWTAuth::attempt($credentials)) {
             return response()->json(['error' => 'Invalid credentials'], 401);
@@ -78,6 +86,34 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Profile updated successfully',
             'user' => $user,
+        ]);
+    }
+
+    //for admin only direct chnage password
+    public function directChangePassword(Request $request)
+    {
+        $user = auth()->user();
+
+        $request->validate([
+            'current_password' => 'required',
+            'new_password' => 'required|string|min:6|confirmed',
+        ]);
+
+        // Check if current password matches
+        if (!Hash::check($request->current_password, $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Current password is incorrect'
+            ], 400);
+        }
+
+        // Update password
+        $user->password = bcrypt($request->new_password);
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password updated successfully'
         ]);
     }
 
