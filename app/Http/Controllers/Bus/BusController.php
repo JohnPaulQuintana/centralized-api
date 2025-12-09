@@ -8,6 +8,7 @@ use App\Models\BusPath;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Carbon\Carbon;
 
 class BusController extends Controller
 {
@@ -15,7 +16,7 @@ class BusController extends Controller
     public function index()
     {
         try {
-            $buses = Bus::select(['id', 'bus_name', 'driver_name', 'license_plate', 'is_active'])
+            $buses = Bus::select(['id', 'bus_name', 'driver_name', 'license_plate', 'is_active', 'created_at', 'updated_at'])
                 ->orderBy('bus_name')
                 ->get();
 
@@ -46,15 +47,19 @@ class BusController extends Controller
                 ], 404);
             }
 
+            // Filter only today's date
+            $today = Carbon::today();
+
             // Get the ABSOLUTE latest position based on created_at
             $currentPosition = $bus->paths()
+                ->whereDate('created_at', $today)
                 ->orderBy('created_at', 'desc')
                 ->first();
 
             // Get path travelled in chronological order (oldest to newest)
             $pathTravelled = $bus->paths()
+                ->whereDate('created_at', $today)
                 ->orderBy('created_at', 'asc')
-                ->limit(50)
                 ->get(['latitude as lat', 'longitude as long', 'speed', 'passenger_count']);
 
             // If we have a current position but it's not the last in path_travelled,
@@ -151,16 +156,28 @@ class BusController extends Controller
                 ], 404);
             }
 
+            // Check if bus is inactive or coordinates didn't change
+            $lastPath = $bus->paths()->latest()->first();
+            $latitude = (float) $request->latitude;
+            $longitude = (float) $request->longitude;
+
+            if (!$bus->is_active || ($lastPath && $lastPath->latitude == $latitude && $lastPath->longitude == $longitude)) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Bus is offline or location unchanged'
+                ], 200);
+            }
+
             // Create new path point
             $pathPoint = BusPath::create([
                 'bus_id' => $bus->id,
-                'latitude' => $request->latitude,
-                'longitude' => $request->longitude,
+                'latitude' => $latitude,
+                'longitude' => $longitude,
                 'speed' => $request->speed ?? 0,
                 'passenger_count' => $request->passenger_count ?? 0
             ]);
 
-            // Update bus as active
+            // Update bus as active if not already
             if (!$bus->is_active) {
                 $bus->update(['is_active' => true]);
             }
@@ -170,8 +187,8 @@ class BusController extends Controller
                 'data' => [
                     'id' => $pathPoint->id,
                     'bus_id' => $pathPoint->bus_id,
-                    'latitude' => (float) $pathPoint->latitude,
-                    'longitude' => (float) $pathPoint->longitude,
+                    'latitude' => $pathPoint->latitude,
+                    'longitude' => $pathPoint->longitude,
                     'speed' => (float) $pathPoint->speed,
                     'passenger_count' => $pathPoint->passenger_count,
                     'created_at' => $pathPoint->created_at->toISOString()
@@ -186,6 +203,7 @@ class BusController extends Controller
             ], 500);
         }
     }
+
 
     // Get bus locations within time range (for analytics)
     public function locationHistory(Request $request, $id)

@@ -24,13 +24,15 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 
 // busses app public for now
 // Bus endpoints
-Route::get('/buses', [BusController::class, 'index']);
+
 Route::get('/buses/{id}/tracking', [BusController::class, 'tracking']);
 Route::post('/buses/{id}/location', [BusController::class, 'updateLocation']);
 Route::get('/buses/{id}/history', [BusController::class, 'locationHistory']);
-Route::post('/buses', [BusController::class, 'store']);
-Route::post('/buses/{id}', [BusController::class, 'update']);
 
+
+
+//bus admin route
+Route::post('/auth/login-admin', [AuthController::class, 'bus_login']);
 // Stop endpoints
 Route::get('/stops', [StopController::class, 'index']);
 Route::post('/stops', [StopController::class, 'store']);
@@ -62,5 +64,10 @@ Route::middleware(['auth:api'])->group(function () {
 
         Route::post('/smart/expenses/{id}', [ExpenseController::class, 'update']);
         Route::delete('/smart/expenses/{id}', [ExpenseController::class, 'destroy']);
+
+        // bus registration
+        Route::post('/buses', [BusController::class, 'store']);
+        Route::get('/buses', [BusController::class, 'index']);
+        Route::post('/buses/{id}', [BusController::class, 'update']);
     });
 });

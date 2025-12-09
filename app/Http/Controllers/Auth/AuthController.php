@@ -33,6 +33,26 @@ class AuthController extends Controller
         return response()->json(compact('user', 'token'));
     }
 
+    // bus trackker login
+    public function bus_login(Request $request)
+    {
+        $credentials = $request->only('email', 'password');
+        // Attempt login and generate token
+        if (!$token = JWTAuth::attempt($credentials)) {
+            return response()->json(['error' => 'Invalid credentials'], 401);
+        }
+
+        // ✅ Retrieve the user associated with this token
+        $user = JWTAuth::setToken($token)->toUser();
+
+        //load the role
+        $user->load('role');
+        return response()->json([
+            'token' => $token,
+            'user' => $user
+        ]);
+    }
+
     public function login(Request $request)
     {
         $credentials = $request->only('email', 'password');
