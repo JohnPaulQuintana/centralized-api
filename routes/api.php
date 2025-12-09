@@ -21,7 +21,8 @@ Route::get('/test', function () {
 Route::post('/auth/google-login', [AuthController::class, 'googleLogin']);
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
-
+Route::post('/update/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/update/reset-password', [AuthController::class, 'resetPassword']);
 // busses app public for now
 // Bus endpoints
 
@@ -69,5 +70,8 @@ Route::middleware(['auth:api'])->group(function () {
         Route::post('/buses', [BusController::class, 'store']);
         Route::get('/buses', [BusController::class, 'index']);
         Route::post('/buses/{id}', [BusController::class, 'update']);
+
+        //bus user update info
+        Route::post('/update/info', [AuthController::class, 'updateProfile']);
     });
 });
