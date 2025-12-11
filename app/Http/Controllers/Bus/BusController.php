@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class BusController extends Controller
 {
@@ -132,6 +133,15 @@ class BusController extends Controller
     public function updateLocation(Request $request, $id)
     {
         try {
+
+             // Log incoming request raw data
+        Log::info('🔵 updateLocation() REQUEST RECEIVED', [
+            'bus_id' => $id,
+            'data' => $request->all(),
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent()
+        ]);
+
             $validator = Validator::make($request->all(), [
                 'latitude' => 'required|numeric|between:-90,90',
                 'longitude' => 'required|numeric|between:-180,180',
