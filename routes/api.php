@@ -28,7 +28,7 @@ Route::post('/update/reset-password', [AuthController::class, 'resetPassword']);
 // Bus endpoints
 Route::get('/buses', [BusController::class, 'index']);
 Route::get('/buses/{id}/tracking', [BusController::class, 'tracking']);
-Route::post('/buses/{id}/location', [BusController::class, 'updateLocation']);
+Route::get('/buses/{id}/location', [BusController::class, 'updateLocation']);
 Route::get('/buses/{id}/history', [BusController::class, 'locationHistory']);
 
 
