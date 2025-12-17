@@ -26,7 +26,7 @@ Route::post('/update/forgot-password', [AuthController::class, 'forgotPassword']
 Route::post('/update/reset-password', [AuthController::class, 'resetPassword']);
 // busses app public for now
 // Bus endpoints
-
+Route::get('/buses', [BusController::class, 'index']);
 Route::get('/buses/{id}/tracking', [BusController::class, 'tracking']);
 Route::post('/buses/{id}/location', [BusController::class, 'updateLocation']);
 Route::get('/buses/{id}/history', [BusController::class, 'locationHistory']);
@@ -69,7 +69,7 @@ Route::middleware(['auth:api'])->group(function () {
 
         // bus registration
         Route::post('/buses', [BusController::class, 'store']);
-        Route::get('/buses', [BusController::class, 'index']);
+
         Route::post('/buses/{id}', [BusController::class, 'update']);
 
         //bus user update info
