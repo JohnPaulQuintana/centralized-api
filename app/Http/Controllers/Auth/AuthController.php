@@ -26,12 +26,17 @@ class AuthController extends Controller
         ]);
 
         $role = Role::where('name', $request->role)->first();
-
+        
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role_id' => $role->id,
+            'business_id' => $request->business_id,
+            'license_no' => $request->license_no,
+            'phone_no' =>$request->phone_no,
+            'bus_id' => $request->bus_id,
+            'plate_no' => $request->plate_no,
         ]);
 
         $token = JWTAuth::fromUser($user);

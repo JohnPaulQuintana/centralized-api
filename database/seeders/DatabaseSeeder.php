@@ -14,10 +14,12 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // --- 1️⃣ Seed roles ---
+        // --- Seed roles ---
         $roles = [
             ['name' => 'developer'],
             ['name' => 'admin'],
+            ['name' => 'operator'],
+            ['name' => 'driver'],
             ['name' => 'user'],
             ['name' => 'member'],
             ['name' => 'teacher'],
@@ -29,7 +31,7 @@ class DatabaseSeeder extends Seeder
             Role::firstOrCreate(['name' => $roleData['name']]);
         }
 
-        // --- 2️⃣ Create users per role ---
+        // --- Create users per role ---
         $this->createDefaultUsers();
     }
 
@@ -43,6 +45,8 @@ class DatabaseSeeder extends Seeder
         $roleUsers = [
             'developer' => ['name' => 'Dev Account', 'email' => 'developer@app.com'],
             'admin'     => ['name' => 'Admin Account', 'email' => 'admin@app.com'],
+            'operator'     => ['name' => 'Operator Account', 'email' => 'operator@app.com'],
+            'driver'     => ['name' => 'Driver Account', 'email' => 'driver@app.com'],
             'user'      => ['name' => 'User Account', 'email' => 'user@app.com'],
             'member'    => ['name' => 'Member Account', 'email' => 'member@app.com'],
             'teacher'   => ['name' => 'Teacher Account', 'email' => 'teacher@app.com'],

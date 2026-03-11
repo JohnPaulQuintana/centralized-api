@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Bus extends Model
 {
     use HasFactory;
-    protected $fillable = ["bus_name","driver_name","license_plate","is_active"];
+    protected $fillable = ["business_id","bus_name","bus_capacity","driver_name","license_plate","is_active"];
 
     protected $casts = [
         'is_active' => 'boolean'
