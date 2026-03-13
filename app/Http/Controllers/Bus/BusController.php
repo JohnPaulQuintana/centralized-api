@@ -166,89 +166,97 @@ class BusController extends Controller
     }
 
     // Get detailed tracking data for a specific bus
-public function tracking($id)
-{
-    try {
-        $bus = Bus::find($id);
+    public function tracking($id)
+    {
+        try {
+            $bus = Bus::find($id);
 
-        if (!$bus) {
+            if (!$bus) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bus not found'
+                ], 404);
+            }
+
+            // Filter only today's date
+            $today = Carbon::today();
+
+            // Get path travelled in chronological order (oldest to newest)
+            $pathTravelled = $bus->paths()
+                ->whereDate('created_at', $today)
+                ->orderBy('id', 'asc')
+                ->get(['latitude as lat', 'longitude as long', 'speed', 'passenger_count', 'created_at']);
+
+            // If no records today, get the oldest record instead
+            if ($pathTravelled->isEmpty()) {
+                $pathTravelled = $bus->paths()
+                    ->orderBy('id', 'asc')
+                    ->limit(1)
+                    ->get(['latitude as lat', 'longitude as long', 'speed', 'passenger_count', 'created_at']);
+            }
+
+            $pathArray = $pathTravelled->map(function ($point) {
+                return [
+                    'lat' => (float) $point->lat,
+                    'long' => (float) $point->long,
+                    'speed' => (float) $point->speed,
+                    'passenger_count' => $point->passenger_count,
+                    'updated_at' => $point->created_at ? $point->created_at->toISOString() : null
+                ];
+            })->toArray();
+
+            // Use the last element of pathArray as current_position
+            $lastPoint = end($pathTravelled);
+
+            $currentPosition = $lastPoint ? [
+                'lat' => (float) $lastPoint->lat,
+                'long' => (float) $lastPoint->long,
+                'speed' => (float) $lastPoint->speed,
+                'passenger_count' => $lastPoint->passenger_count,
+                'updated_at' => $lastPoint->created_at ? $lastPoint->created_at->toISOString() : null
+            ] : null;
+
+            // Get the active driver for this bus
+            $driver = User::where('bus_id', $bus->id)
+                ->where('is_active', 1)
+                ->first();
+
+            $busines = Business::where('id', $bus->business_id)->first();
+
+            // Format response (same structure as before)
+            $response = [
+                'id' => $bus->id,
+                'bus_name' => $bus->bus_name,
+                'business_name' => $busines ? $busines->name : "Not registered",
+                'bus_capacity' => $bus->bus_capacity,
+                'driver_name' => $driver ? $driver->name : null,
+                'plate_no' => $driver ? $driver->plate_no : null,
+                'phone_no' => $driver ? $driver->phone_no : null,
+                'is_active' => $bus->is_active,
+                'current_position' => $currentPosition,
+                'path_travelled' => $pathArray
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $response,
+                'message' => 'Bus tracking data retrieved successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error in bus tracking endpoint for ID ' . $id . ': ' . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Bus not found'
-            ], 404);
+                'message' => 'Failed to retrieve bus tracking data',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        // Filter only today's date
-        $today = Carbon::today();
-
-        // Get path travelled in chronological order (oldest to newest)
-        $pathTravelled = $bus->paths()
-            ->whereDate('created_at', $today)
-            ->orderBy('id', 'asc')
-            ->get(['latitude as lat', 'longitude as long', 'speed', 'passenger_count', 'created_at']);
-
-        $pathArray = $pathTravelled->map(function ($point) {
-            return [
-                'lat' => (float) $point->lat,
-                'long' => (float) $point->long,
-                'speed' => (float) $point->speed,
-                'passenger_count' => $point->passenger_count,
-                'updated_at' => $point->created_at ? $point->created_at->toISOString() : null
-            ];
-        })->toArray();
-
-        // Use the last element of pathArray as current_position
-        $lastPoint = end($pathTravelled);
-
-        $currentPosition = $lastPoint ? [
-            'lat' => (float) $lastPoint->lat,
-            'long' => (float) $lastPoint->long,
-            'speed' => (float) $lastPoint->speed,
-            'passenger_count' => $lastPoint->passenger_count,
-            'updated_at' => $lastPoint->created_at ? $lastPoint->created_at->toISOString() : null
-        ] : null;
-
-        // Get the active driver for this bus
-        $driver = User::where('bus_id', $bus->id)
-            ->where('is_active', 1)
-            ->first();
-
-        $busines = Business::where('id', $bus->business_id)->first();
-
-        // Format response (same structure as before)
-        $response = [
-            'id' => $bus->id,
-            'bus_name' => $bus->bus_name,
-            'business_name' => $busines ? $busines->name : "Not registered",
-            'bus_capacity' => $bus->bus_capacity,
-            'driver_name' => $driver ? $driver->name : null,
-            'plate_no' => $driver ? $driver->plate_no : null,
-            'phone_no' => $driver ? $driver->phone_no : null,
-            'is_active' => $bus->is_active,
-            'current_position' => $currentPosition,
-            'path_travelled' => $pathArray
-        ];
-
-        return response()->json([
-            'success' => true,
-            'data' => $response,
-            'message' => 'Bus tracking data retrieved successfully'
-        ]);
-
-    } catch (\Exception $e) {
-        \Log::error('Error in bus tracking endpoint for ID ' . $id . ': ' . $e->getMessage(), [
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
-            'trace' => $e->getTraceAsString()
-        ]);
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to retrieve bus tracking data',
-            'error' => $e->getMessage()
-        ], 500);
     }
-}
 
     // Update bus location (from GPS device)
     public function updateLocation(Request $request, $id)
