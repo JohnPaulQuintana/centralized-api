@@ -102,6 +102,7 @@ class BusController extends Controller
                 'buses.bus_name',
                 'buses.bus_capacity',
                 'buses.is_active',
+                'buses.status',
                 'buses.created_at',
                 'buses.updated_at'
             ]);
@@ -183,7 +184,7 @@ class BusController extends Controller
 
             // Get path travelled in chronological order (oldest to newest)
             $pathTravelled = $bus->paths()
-                ->whereDate('created_at', $today)
+                ->whereDate(\DB::raw('COALESCE(created_at, updated_at)'), $today)
                 ->orderBy('id', 'asc')
                 ->get(['latitude as lat', 'longitude as long', 'speed', 'passenger_count', 'created_at']);
 
@@ -226,7 +227,10 @@ class BusController extends Controller
             // Format response (same structure as before)
             $response = [
                 'id' => $bus->id,
+                'bus_current_index' => $bus->current_stop_index,
+                'is_returning' => $bus->is_returning,
                 'bus_name' => $bus->bus_name,
+                'bus_status' =>$bus->status,
                 'business_name' => $busines ? $busines->name : "Not registered",
                 'bus_capacity' => $bus->bus_capacity,
                 'driver_name' => $driver ? $driver->name : null,
@@ -275,7 +279,8 @@ class BusController extends Controller
                 'latitude' => 'required|numeric|between:-90,90',
                 'longitude' => 'required|numeric|between:-180,180',
                 'speed' => 'nullable|numeric|min:0',
-                'passenger_count' => 'nullable|integer|min:0'
+                'passenger_count' => 'nullable|integer|min:0',
+                'status' => 'nullable|string|in:online,emergency'
             ]);
 
             if ($validator->fails()) {
@@ -293,6 +298,12 @@ class BusController extends Controller
                     'success' => false,
                     'message' => 'Bus not found'
                 ], 404);
+            }
+
+            // Update bus status if provided
+            if ($request->has('status')) {
+                $bus->status = $request->status;
+                $bus->save();
             }
 
             // Check if bus is inactive or coordinates didn't change
@@ -492,85 +503,110 @@ class BusController extends Controller
     }
 
     public function deleteTrail(Request $request, $busId)
-{
-    Log::info('🔵 deleteTrail() called', [
-        'bus_id' => $busId,
-        'request' => $request->all(),
-    ]);
-
-    // Ensure $busId is numeric
-    if (!is_numeric($busId)) {
-        Log::warning('Invalid bus ID provided', ['bus_id' => $busId]);
-        return response()->json(['message' => 'Invalid bus ID'], 400);
-    }
-
-    // Validate coordinates
-    $request->validate([
-        'latitude' => 'required',
-        'longitude' => 'required',
-    ]);
-
-    $latitude = $request->latitude;
-    $longitude = $request->longitude;
-
-    // Get the first (oldest) record ID for this bus
-    $firstRecord = DB::table('bus_paths')
-        ->where('bus_id', $busId)
-        ->orderBy('created_at', 'asc')
-        ->lockForUpdate() // prevent race conditions
-        ->first();
-
-    if (!$firstRecord) {
-        Log::warning('No bus trail records found', ['bus_id' => $busId]);
-        return response()->json(['message' => 'No bus trail records found'], 404);
-    }
-
-    Log::info('First bus path record found', ['firstRecord' => $firstRecord]);
-
-    // Delete all other records except the first
-    $deletedCount = DB::table('bus_paths')
-        ->where('bus_id', $busId)
-        ->where('id', '<>', $firstRecord->id)
-        ->delete();
-
-    Log::info('Deleted other bus path records', [
-        'bus_id' => $busId,
-        'deleted_count' => $deletedCount
-    ]);
-
-    // Update the first record coordinates to the last stop
-    $updated = DB::table('bus_paths')
-        ->where('id', $firstRecord->id)
-        ->update([
-            'latitude' => $latitude,
-            'longitude' => $longitude,
-            'speed' => 0,           // reset optional fields
-            'passenger_count' => 0, // reset optional fields
-            'updated_at' => now(),
+    {
+        Log::info('🔵 deleteTrail() called', [
+            'bus_id' => $busId,
+            'request' => $request->all(),
         ]);
 
-    if ($updated === 0) {
-        Log::error('Failed to update the first bus path record', [
+        // Ensure $busId is numeric
+        if (!is_numeric($busId)) {
+            Log::warning('Invalid bus ID provided', ['bus_id' => $busId]);
+            return response()->json(['message' => 'Invalid bus ID'], 400);
+        }
+
+        // Validate coordinates
+        $request->validate([
+            'latitude' => 'required',
+            'longitude' => 'required',
+        ]);
+
+        $latitude = $request->latitude;
+        $longitude = $request->longitude;
+
+        // Get the first (oldest) record ID for this bus
+        $firstRecord = DB::table('bus_paths')
+            ->where('bus_id', $busId)
+            ->orderBy('created_at', 'asc')
+            ->lockForUpdate() // prevent race conditions
+            ->first();
+
+        if (!$firstRecord) {
+            Log::warning('No bus trail records found', ['bus_id' => $busId]);
+            return response()->json(['message' => 'No bus trail records found'], 404);
+        }
+
+        Log::info('First bus path record found', ['firstRecord' => $firstRecord]);
+
+        // Delete all other records except the first
+        $deletedCount = DB::table('bus_paths')
+            ->where('bus_id', $busId)
+            ->where('id', '<>', $firstRecord->id)
+            ->delete();
+
+        Log::info('Deleted other bus path records', [
+            'bus_id' => $busId,
+            'deleted_count' => $deletedCount
+        ]);
+
+        // Update the first record coordinates to the last stop
+        $updated = DB::table('bus_paths')
+            ->where('id', $firstRecord->id)
+            ->update([
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+                'speed' => 0,           // reset optional fields
+                'passenger_count' => 0, // reset optional fields
+                'updated_at' => now(),
+            ]);
+
+        if ($updated === 0) {
+            Log::error('Failed to update the first bus path record', [
+                'bus_id' => $busId,
+                'firstRecordId' => $firstRecord->id,
+                'latitude' => $latitude,
+                'longitude' => $longitude
+            ]);
+            return response()->json([
+                'message' => 'Failed to update the first record'
+            ], 500);
+        }
+
+        Log::info('First bus path record updated successfully', [
             'bus_id' => $busId,
             'firstRecordId' => $firstRecord->id,
             'latitude' => $latitude,
             'longitude' => $longitude
         ]);
+
         return response()->json([
-            'message' => 'Failed to update the first record'
-        ], 500);
+            'message' => 'Bus trail cleared except the first record',
+            'firstRecordUpdated' => true
+        ]);
     }
 
-    Log::info('First bus path record updated successfully', [
-        'bus_id' => $busId,
-        'firstRecordId' => $firstRecord->id,
-        'latitude' => $latitude,
-        'longitude' => $longitude
-    ]);
+    public function updateStopIndex(Request $request)
+    {
+        $bus = Bus::findOrFail($request->bus_id);
 
-    return response()->json([
-        'message' => 'Bus trail cleared except the first record',
-        'firstRecordUpdated' => true
-    ]);
-}
+        // Update current_stop_index as is
+        $bus->current_stop_index = $request->current_stop_index;
+
+        // Only update is_returning if value is 0 or 1
+        if (isset($request->is_returning)) {
+            $isReturning = (int)$request->is_returning;
+            if ($isReturning === 1) {
+                // $bus->is_returning = $isReturning;
+                // Toggle is_returning
+                $bus->is_returning = $bus->is_returning ? false : true;
+            }
+            // if value is 3 (or any other), do nothing
+        }
+
+        $bus->save();
+
+        return response()->json([
+            'message' => 'Stop index updated'
+        ]);
+    }
 }

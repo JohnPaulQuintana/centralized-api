@@ -222,7 +222,7 @@ class AuthController extends Controller
     }
 
 
-    public function login(Request $request)
+   public function login(Request $request)
     {
         $credentials = $request->only('email', 'password');
 
@@ -231,8 +231,14 @@ class AuthController extends Controller
             return response()->json(['error' => 'Invalid credentials'], 401);
         }
 
-        // ✅ Retrieve the user associated with this token
+        // Retrieve authenticated user
         $user = JWTAuth::setToken($token)->toUser();
+
+        // Update status if role_id = 4
+        if ($user->role_id == 4) {
+            $user->is_active = 1; // online
+            $user->save();
+        }
 
         return response()->json([
             'token' => $token,
@@ -247,8 +253,18 @@ class AuthController extends Controller
 
     public function logout()
     {
+        $user = auth()->user();
+
+        if ($user) {
+            $user->is_active = 0; // set offline
+            $user->save();
+        }
+
         auth()->logout();
-        return response()->json(['message' => 'Successfully logged out']);
+
+        return response()->json([
+            'message' => 'Successfully logged out'
+        ]);
     }
 
     public function googleLogin(Request $request)

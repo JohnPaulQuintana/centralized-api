@@ -29,6 +29,7 @@ Route::post('/update/reset-password', [AuthController::class, 'resetPassword']);
 // busses app public for now
 // Bus endpoints
 Route::get('/buses', [BusController::class, 'index']);
+Route::post('/buses/update-stop-index', [BusController::class, 'updateStopIndex']);
 Route::get('/buses/group', [BusController::class, 'indexGroup']);
 Route::get('/buses/{id}/tracking', [BusController::class, 'tracking']);
 Route::post('/buses/{id}/trail', [BusController::class, 'deleteTrail']);
