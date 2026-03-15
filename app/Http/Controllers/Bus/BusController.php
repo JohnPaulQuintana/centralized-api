@@ -7,6 +7,7 @@ use App\Models\Bus;
 use App\Models\User;
 use App\Models\Business;
 use App\Models\BusPath;
+use App\Models\BusStop;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -443,6 +444,17 @@ class BusController extends Controller
                 'is_active' => $request->is_active ?? true
             ]);
 
+            if ($bus) {
+                $bus_stop_first = BusStop::latest()->first(); // get latest BusStop record
+
+                BusPath::create([
+                    'bus_id' => $bus->id,
+                    'latitude' => $bus_stop_first->latitude,
+                    'longitude' => $bus_stop_first->longitude,
+                    'speed' => 0,
+                    'passenger_count' => 0
+                ]);
+            }
             return response()->json([
                 'success' => true,
                 'data' => $bus,
