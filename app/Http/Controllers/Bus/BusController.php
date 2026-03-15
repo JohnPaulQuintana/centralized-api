@@ -445,8 +445,8 @@ class BusController extends Controller
             ]);
 
             if ($bus) {
-                $bus_stop_first = BusStop::latest()->first(); // get latest BusStop record
-
+               $bus_stop_first = BusStop::orderBy('id', 'asc')->first(); // get first BusStop record
+               
                 BusPath::create([
                     'bus_id' => $bus->id,
                     'latitude' => $bus_stop_first->latitude,
