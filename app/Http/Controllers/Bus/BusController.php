@@ -421,9 +421,9 @@ class BusController extends Controller
             $validator = Validator::make($request->all(), [
                 'business_id' => 'required',
                 'bus_name' => 'required|string|max:100',
-                'bus_capacity' => 'required|integer|min:1|max:30', // validate capacity
+                'bus_capacity' => 'required|integer|min:1|max:50', // validate capacity
                 'driver_name' => 'nullable|string|max:100',
-                'license_plate' => 'nullable|string|max:20',
+                'license_plate' => 'required|string|max:20',
                 'is_active' => 'nullable|boolean'
             ]);
 
@@ -484,9 +484,9 @@ class BusController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'bus_name' => 'sometimes|required|string|max:100',
-                'bus_capacity' => 'required|integer|min:1|max:30',
+                'bus_capacity' => 'required|integer|min:1|max:50',
                 'driver_name' => 'nullable|string|max:100',
-                'license_plate' => 'nullable|string|max:20',
+                'license_plate' => 'required|string|max:20',
                 'is_active' => 'nullable|boolean'
             ]);
 

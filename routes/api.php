@@ -43,6 +43,8 @@ Route::post('/auth/login-admin', [AuthController::class, 'bus_login']);
 // Stop endpoints
 Route::get('/stops', [StopController::class, 'index']);
 Route::post('/stops', [StopController::class, 'store']);
+// routes/api.php
+Route::post('/stops/reorder', [StopController::class, 'reorder']);
 Route::put('/stops/{id}', [StopController::class, 'update']);
 Route::delete('/stops/{id}', [StopController::class, 'destroy']);
 
@@ -77,6 +79,7 @@ Route::middleware(['auth:api'])->group(function () {
 
         // bus registration
         Route::post('/buses', [BusController::class, 'store']);
+        // Route::post('/bus-stops', [BusController::class, 'store']);
 
         Route::post('/buses/{id}', [BusController::class, 'update']);
 

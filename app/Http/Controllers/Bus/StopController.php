@@ -21,13 +21,13 @@ class StopController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $stops,
-                'message' => 'Stops retrieved successfully'
+                'message' => 'Stops retrieved successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve stops',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -39,33 +39,70 @@ class StopController extends Controller
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:100',
                 'latitude' => 'required|numeric|between:-90,90',
-                'longitude' => 'required|numeric|between:-180,180'
+                'longitude' => 'required|numeric|between:-180,180',
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation error',
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
             $stop = BusStop::create([
                 'name' => $request->name,
                 'latitude' => $request->latitude,
-                'longitude' => $request->longitude
+                'longitude' => $request->longitude,
             ]);
 
             return response()->json([
                 'success' => true,
                 'data' => $stop,
-                'message' => 'Stop created successfully'
+                'message' => 'Stop created successfully',
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create stop',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function reorder(Request $request)
+    {
+        $busStops = $request->input('busStops');
+
+        if (! is_array($busStops)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid payload',
+            ], 422);
+        }
+
+        try {
+            // Delete all existing bus stops and reset auto-increment
+            BusStop::truncate();
+
+            // Insert new stops in order
+            foreach ($busStops as $stop) {
+                BusStop::create([
+                    'name' => $stop['name'],
+                    'latitude' => $stop['latitude'],
+                    'longitude' => $stop['longitude'],
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Bus stops reordered successfully',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reorder bus stops',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -76,24 +113,24 @@ class StopController extends Controller
         try {
             $stop = BusStop::find($id);
 
-            if (!$stop) {
+            if (! $stop) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Stop not found'
+                    'message' => 'Stop not found',
                 ], 404);
             }
 
             $validator = Validator::make($request->all(), [
                 'name' => 'sometimes|required|string|max:100',
                 'latitude' => 'sometimes|required|numeric|between:-90,90',
-                'longitude' => 'sometimes|required|numeric|between:-180,180'
+                'longitude' => 'sometimes|required|numeric|between:-180,180',
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation error',
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
@@ -102,13 +139,13 @@ class StopController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $stop,
-                'message' => 'Stop updated successfully'
+                'message' => 'Stop updated successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update stop',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -119,10 +156,10 @@ class StopController extends Controller
         try {
             $stop = BusStop::find($id);
 
-            if (!$stop) {
+            if (! $stop) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Stop not found'
+                    'message' => 'Stop not found',
                 ], 404);
             }
 
@@ -130,13 +167,13 @@ class StopController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Stop deleted successfully'
+                'message' => 'Stop deleted successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete stop',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
