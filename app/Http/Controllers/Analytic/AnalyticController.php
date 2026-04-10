@@ -100,7 +100,7 @@ class AnalyticController extends Controller
                 ->first();
 
             // 👤 Drivers
-            $drivers = User::where('role', 4)->count();
+            $drivers = User::where('role_id', 4)->count();
 
             // 🚌 Per bus analytics
             $buses = OperatorBusDailyAnalytic::with('bus')
