@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Business;
 use App\Models\BusPath;
 use App\Models\BusStop;
+use App\Models\OperatorBusDailyAnalytic;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -328,6 +329,48 @@ class BusController extends Controller
                 'passenger_count' => $request->passenger_count ?? 0
             ]);
 
+            $today = Carbon::today();
+            // 📊 Get or create today's analytics row
+            $analytics = OperatorBusDailyAnalytic::firstOrCreate([
+                'bus_id' => $bus->id,
+                'date' => $today,
+            ], [
+                'operator_id' => $bus->operator_id ?? null,
+                'started_at' => now(),
+            ]);
+
+            // 📍 Get previous GPS point for distance calculation
+            $previousPath = $bus->paths()->latest()->skip(1)->first();
+
+            // 📏 Distance calculation
+            if ($previousPath) {
+                $distance = $this->calculateDistance(
+                    $previousPath->latitude,
+                    $previousPath->longitude,
+                    $latitude,
+                    $longitude
+                );
+
+                $analytics->total_distance_km += $distance;
+            }
+
+            // 👥 Passenger tracking
+            $analytics->total_passengers += $request->passenger_count ?? 0;
+            
+            // 🚀 Speed + average calculation
+            $analytics->location_points += 1;
+
+            $analytics->avg_speed =
+                (($analytics->avg_speed * ($analytics->location_points - 1))
+                + ($request->speed ?? 0))
+                / $analytics->location_points;
+
+            // 📍 Last position
+            $analytics->last_lat = $latitude;
+            $analytics->last_lng = $longitude;
+
+            $analytics->save();
+
             // Update bus as active if not already
             if (!$bus->is_active) {
                 $bus->update(['is_active' => true]);
@@ -353,6 +396,22 @@ class BusController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    private function calculateDistance($lat1, $lng1, $lat2, $lng2)
+    {
+        $earthRadius = 6371; // km
+
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+
+        $a = sin($dLat / 2) * sin($dLat / 2) +
+            cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+            sin($dLng / 2) * sin($dLng / 2);
+
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return $earthRadius * $c;
     }
 
 
