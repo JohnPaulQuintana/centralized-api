@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Analytic;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\User;
-use App\Models\Business;
 use App\Models\Bus;
+use App\Models\Business;
+use App\Models\User;
+use Illuminate\Http\Request;
 
 class AnalyticController extends Controller
 {
