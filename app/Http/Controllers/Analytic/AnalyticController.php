@@ -108,7 +108,7 @@ class AnalyticController extends Controller
                 ->get()
                 ->map(function ($item) {
                     return [
-                        'name' => $item->bus->plate_no ?? 'N/A',
+                        'name' => $item->bus->license_plate ?? 'N/A',
                         'passengers' => $item->total_passengers,
                         'distance' => round($item->total_distance_km, 2),
                         'speed' => round($item->avg_speed, 2),
