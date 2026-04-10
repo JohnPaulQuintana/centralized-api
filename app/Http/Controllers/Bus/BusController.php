@@ -355,8 +355,12 @@ class BusController extends Controller
             }
 
             // 👥 Passenger tracking
-            $analytics->total_passengers += $request->passenger_count ?? 0;
-            
+            // $analytics->total_passengers += $request->passenger_count ?? 0;
+            $currentPassengers = $request->passenger_count ?? 0;
+            $previousPassengers = $previousPath->passenger_count ?? 0;
+            if ($currentPassengers > $previousPassengers) {
+                $analytics->total_passengers += ($currentPassengers - $previousPassengers);
+            }
             // 🚀 Speed + average calculation
             $analytics->location_points += 1;
 
