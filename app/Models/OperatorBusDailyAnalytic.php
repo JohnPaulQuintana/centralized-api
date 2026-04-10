@@ -18,4 +18,9 @@ class OperatorBusDailyAnalytic extends Model
         'last_lng',
         'started_at',
     ];
+
+    public function bus()
+{
+    return $this->belongsTo(Bus::class, 'bus_id'); 
+}
 }
