@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Analytic\AnalyticController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Bus\BusController;
 use App\Http\Controllers\Bus\StopController;
@@ -49,6 +50,8 @@ Route::put('/stops/{id}', [StopController::class, 'update']);
 Route::delete('/stops/{id}', [StopController::class, 'destroy']);
 
 Route::middleware(['auth:api'])->group(function () {
+    // Analytics
+    Route::get('/analytics', [AnalyticController::class, 'AnalyticController']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
