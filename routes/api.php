@@ -51,7 +51,7 @@ Route::delete('/stops/{id}', [StopController::class, 'destroy']);
 
 Route::middleware(['auth:api'])->group(function () {
     // Analytics
-    Route::get('/analytics', [AnalyticController::class, 'AnalyticController']);
+    Route::get('/analytics', [AnalyticController::class, 'index']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
