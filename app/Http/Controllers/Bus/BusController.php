@@ -89,7 +89,7 @@ class BusController extends Controller
     public function emergency()
     {
         try {
-            $buses = Bus::with('latestLocation')
+            $buses = Bus::with(['latestLocation', 'driver'])
                 ->where('status', 'emergency')
                 ->get();
 

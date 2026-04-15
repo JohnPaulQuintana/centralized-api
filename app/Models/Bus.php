@@ -41,4 +41,10 @@ class Bus extends Model
     {
         return $this->hasOne(BusPath::class)->latestOfMany();
     }
+
+    public function driver()
+    {
+        return $this->hasOne(User::class, 'bus_id')
+            ->where('is_active', 1);
+    }
 }
