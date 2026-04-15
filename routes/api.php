@@ -49,6 +49,9 @@ Route::post('/stops/reorder', [StopController::class, 'reorder']);
 Route::put('/stops/{id}', [StopController::class, 'update']);
 Route::delete('/stops/{id}', [StopController::class, 'destroy']);
 
+// emergency
+Route::get('/emergency',[BusController::class, 'emergency']);
+
 Route::middleware(['auth:api'])->group(function () {
     // Analytics
     Route::get('/analytics', [AnalyticController::class, 'index']);

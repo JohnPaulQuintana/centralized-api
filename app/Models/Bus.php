@@ -9,10 +9,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Bus extends Model
 {
     use HasFactory;
-    protected $fillable = ["business_id","bus_name","bus_capacity","driver_name","license_plate","is_active","status","current_stop_index","is_returning"];
+
+    protected $fillable = ['business_id', 'bus_name', 'bus_capacity', 'driver_name', 'license_plate', 'is_active', 'status', 'current_stop_index', 'is_returning'];
 
     protected $casts = [
-        'is_active' => 'boolean'
+        'is_active' => 'boolean',
     ];
 
     // Relationship with bus paths
@@ -34,5 +35,10 @@ class Bus extends Model
             ->orderBy('created_at', 'asc')
             // ->limit(50)
             ->get(['latitude', 'longitude', 'speed', 'passenger_count']);
+    }
+
+    public function latestLocation()
+    {
+        return $this->hasOne(BusPath::class)->latestOfMany();
     }
 }
