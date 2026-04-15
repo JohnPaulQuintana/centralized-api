@@ -236,7 +236,7 @@ class BusController extends Controller
                 'business_name' => $busines ? $busines->name : "Not registered",
                 'bus_capacity' => $bus->bus_capacity,
                 'driver_name' => $driver ? $driver->name : null,
-                'plate_no' => $driver ? $driver->plate_no : null,
+                'plate_no' => $driver ? $driver->plate_no : $bus->license_plate,
                 'phone_no' => $driver ? $driver->phone_no : null,
                 'is_active' => $bus->is_active,
                 'current_position' => $currentPosition,
