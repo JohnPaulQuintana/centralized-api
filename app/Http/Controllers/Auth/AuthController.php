@@ -26,6 +26,9 @@ class AuthController extends Controller
 
         $role = Role::where('name', $request->role)->first();
 
+        // store plain password BEFORE hashing (for email only)
+        $plainPassword = $request->password;
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
@@ -39,6 +42,32 @@ class AuthController extends Controller
         ]);
 
         $token = JWTAuth::fromUser($user);
+
+        // Send email ONLY for operator (role_id === 3)
+        if ($role->id === 3) {
+            // Send confirmation email
+            try {
+                Mail::send('emails.operator_email', [
+                    'user' => $user,
+                    'password' => $plainPassword,
+                ], function ($message) use ($user) {
+                    $message->to($user->email);
+                    $message->subject('Your Bus Tracker Operator Account');
+                });
+                Log::info('Password change confirmation email sent', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'time' => now(),
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to send password change email', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'error' => $e->getMessage(),
+                    'time' => now(),
+                ]);
+            }
+        }
 
         return response()->json(compact('user', 'token'));
     }
