@@ -3,16 +3,15 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\User;
 use App\Models\Role;
+use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Tymon\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class AuthController extends Controller
 {
@@ -22,11 +21,11 @@ class AuthController extends Controller
             'name' => 'required',
             'email' => 'required|email|unique:users',
             'password' => 'required|min:6',
-            'role' => 'required|exists:roles,name'
+            'role' => 'required|exists:roles,name',
         ]);
 
         $role = Role::where('name', $request->role)->first();
-        
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
@@ -34,12 +33,13 @@ class AuthController extends Controller
             'role_id' => $role->id,
             'business_id' => $request->business_id,
             'license_no' => $request->license_no,
-            'phone_no' =>$request->phone_no,
+            'phone_no' => $request->phone_no,
             'bus_id' => $request->bus_id,
             'plate_no' => $request->plate_no,
         ]);
 
         $token = JWTAuth::fromUser($user);
+
         return response()->json(compact('user', 'token'));
     }
 
@@ -50,24 +50,25 @@ class AuthController extends Controller
             'credentials' => $request->only('email', 'password'),
             'password' => $request->password,
             'ip' => $request->ip(),
-            'time' => now()
+            'time' => now(),
         ]);
 
         $credentials = $request->only('email', 'password');
 
         // Attempt login and generate token
-        if (!$token = JWTAuth::attempt($credentials)) {
+        if (! $token = JWTAuth::attempt($credentials)) {
             return response()->json(['error' => 'Invalid credentials'], 401);
         }
 
         // ✅ Retrieve the user associated with this token
         $user = JWTAuth::setToken($token)->toUser();
 
-        //load the role
+        // load the role
         $user->load('role');
+
         return response()->json([
             'token' => $token,
-            'user' => $user
+            'user' => $user,
         ]);
     }
 
@@ -77,7 +78,7 @@ class AuthController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $user->id,
+            'email' => 'required|email|unique:users,email,'.$user->id,
         ]);
 
         if ($validator->fails()) {
@@ -94,7 +95,7 @@ class AuthController extends Controller
         ]);
     }
 
-    //for admin only direct chnage password
+    // for admin only direct chnage password
     public function directChangePassword(Request $request)
     {
         $user = auth()->user();
@@ -105,10 +106,10 @@ class AuthController extends Controller
         ]);
 
         // Check if current password matches
-        if (!Hash::check($request->current_password, $user->password)) {
+        if (! Hash::check($request->current_password, $user->password)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Current password is incorrect'
+                'message' => 'Current password is incorrect',
             ], 400);
         }
 
@@ -118,10 +119,9 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Password updated successfully'
+            'message' => 'Password updated successfully',
         ]);
     }
-
 
     public function forgotPassword(Request $request)
     {
@@ -132,9 +132,9 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
-                'error' => 'Email not found'
+                'error' => 'Email not found',
             ], 404);
         }
 
@@ -142,11 +142,11 @@ class AuthController extends Controller
         $tempToken = Str::random(64);
 
         // Store in cache for 5 minutes
-        cache()->put('password_reset_' . $tempToken, $user->id, 300);
+        cache()->put('password_reset_'.$tempToken, $user->id, 300);
 
         return response()->json([
             'message' => 'Email validated. Enter new password.',
-            'token' => $tempToken
+            'token' => $tempToken,
         ]);
     }
 
@@ -160,28 +160,30 @@ class AuthController extends Controller
             'token' => $request->token,
             'password' => $request->password,
             'ip' => $request->ip(),
-            'time' => now()
+            'time' => now(),
         ]);
 
-        $userId = cache()->get('password_reset_' . $request->token);
+        $userId = cache()->get('password_reset_'.$request->token);
 
-        if (!$userId) {
+        if (! $userId) {
             Log::warning('Password reset attempt failed', [
                 'token' => $request->token,
                 'ip' => $request->ip(),
-                'time' => now()
+                'time' => now(),
             ]);
+
             return response()->json(['error' => 'Invalid or expired token'], 400);
         }
 
         $user = User::find($userId);
-        if (!$user) {
+        if (! $user) {
             Log::error('Password reset failed: user not found', [
                 'user_id' => $userId,
                 'token' => $request->token,
                 'ip' => $request->ip(),
-                'time' => now()
+                'time' => now(),
             ]);
+
             return response()->json(['error' => 'User not found'], 404);
         }
 
@@ -192,11 +194,11 @@ class AuthController extends Controller
             'user_id' => $user->id,
             'email' => $user->email,
             'ip' => $request->ip(),
-            'time' => now()
+            'time' => now(),
         ]);
 
         // Remove token
-        cache()->forget('password_reset_' . $request->token);
+        cache()->forget('password_reset_'.$request->token);
 
         // Send confirmation email
         try {
@@ -207,42 +209,62 @@ class AuthController extends Controller
             Log::info('Password change confirmation email sent', [
                 'user_id' => $user->id,
                 'email' => $user->email,
-                'time' => now()
+                'time' => now(),
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to send password change email', [
                 'user_id' => $user->id,
                 'email' => $user->email,
                 'error' => $e->getMessage(),
-                'time' => now()
+                'time' => now(),
             ]);
         }
 
         return response()->json(['message' => 'Password changed successfully.']);
     }
 
-
-   public function login(Request $request)
+    public function login(Request $request)
     {
         $credentials = $request->only('email', 'password');
 
         // Attempt login and generate token
-        if (!$token = JWTAuth::attempt($credentials)) {
+        if (! $token = JWTAuth::attempt($credentials)) {
             return response()->json(['error' => 'Invalid credentials'], 401);
         }
 
         // Retrieve authenticated user
         $user = JWTAuth::setToken($token)->toUser();
 
-        // Update status if role_id = 4
+        // Check for active driver on same bus
         if ($user->role_id == 4) {
+
+            // CASE 1: Same user already active
+            if ($user->is_active == 1) {
+                return response()->json([
+                    'error' => 'This account is already active. Please logout from the other device first.',
+                ], 403);
+            }
+
+            // CASE 2: Another driver using same bus
+            $existingDriver = User::where('bus_id', $user->bus_id)
+                ->where('role_id', 4)
+                ->where('is_active', 1)
+                ->where('id', '!=', $user->id)
+                ->first();
+
+            if ($existingDriver) {
+                return response()->json([
+                    'error' => 'This bus is currently in use by another driver.',
+                ], 403);
+            }
+
             $user->is_active = 1; // online
             $user->save();
         }
 
         return response()->json([
             'token' => $token,
-            'user' => $user
+            'user' => $user,
         ]);
     }
 
@@ -263,7 +285,7 @@ class AuthController extends Controller
         auth()->logout();
 
         return response()->json([
-            'message' => 'Successfully logged out'
+            'message' => 'Successfully logged out',
         ]);
     }
 
@@ -278,7 +300,7 @@ class AuthController extends Controller
         // Check if user exists
         $user = User::where('email', $request->email)->first();
 
-        if (!$user) {
+        if (! $user) {
             // Default role name
             $defaultRoleName = 'user'; // adjust as needed
             $role = Role::where('name', $defaultRoleName)->first();
@@ -297,7 +319,7 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => $user,
-            'token' => $token
+            'token' => $token,
         ]);
     }
 }
