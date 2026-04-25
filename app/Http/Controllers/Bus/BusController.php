@@ -359,10 +359,28 @@ class BusController extends Controller
                 'started_at' => now(),
             ]);
 
-            // 📍 Get previous GPS point for distance calculation
-            $previousPath = $bus->paths()->latest()->skip(1)->first();
+            // // 📍 Get previous GPS point for distance calculation
+            // $previousPath = $bus->paths()->latest()->skip(1)->first();
 
-            // 📏 Distance calculation
+            // // 📏 Distance calculation
+            // if ($previousPath) {
+            //     $distance = $this->calculateDistance(
+            //         $previousPath->latitude,
+            //         $previousPath->longitude,
+            //         $latitude,
+            //         $longitude
+            //     );
+
+            //     $analytics->total_distance_km += $distance;
+            // }
+            // 📍 Get previous GPS point (correct way)
+            $previousPath = $bus->paths()
+                ->orderBy('created_at', 'desc')
+                ->skip(1)
+                ->first();
+
+            $distance = 0;
+
             if ($previousPath) {
                 $distance = $this->calculateDistance(
                     $previousPath->latitude,
@@ -371,13 +389,19 @@ class BusController extends Controller
                     $longitude
                 );
 
-                $analytics->total_distance_km += $distance;
+                $speed = $request->speed ?? 0;
+
+                // 🚫 Filter GPS noise + jumps
+                if ($distance > 0.01 && $distance < 1 && $speed < 120) {
+                    $analytics->total_distance_km += $distance;
+                }
             }
 
             // 👥 Passenger tracking
             // $analytics->total_passengers += $request->passenger_count ?? 0;
             $currentPassengers = $request->passenger_count ?? 0;
-            $previousPassengers = $previousPath->passenger_count ?? 0;
+            // $previousPassengers = $previousPath->passenger_count ?? 0;
+            $previousPassengers = $previousPath ? $previousPath->passenger_count : 0;
             if ($currentPassengers > $previousPassengers) {
                 $analytics->total_passengers += ($currentPassengers - $previousPassengers);
             }
