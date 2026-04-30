@@ -27,6 +27,10 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/update/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/update/reset-password', [AuthController::class, 'resetPassword']);
 
+// OTP
+Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
+Route::post('/resend-otp', [AuthController::class, 'resendOtp']);
+
 // busses app public for now
 // Bus endpoints
 Route::get('/buses', [BusController::class, 'index']);

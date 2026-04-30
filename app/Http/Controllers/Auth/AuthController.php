@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -29,6 +30,9 @@ class AuthController extends Controller
         // store plain password BEFORE hashing (for email only)
         $plainPassword = $request->password;
 
+        // Generate OTP only for role 5
+        $otp = ($role->id === 5) ? rand(100000, 999999) : null;
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
@@ -39,7 +43,36 @@ class AuthController extends Controller
             'phone_no' => $request->phone_no,
             'bus_id' => $request->bus_id,
             'plate_no' => $request->plate_no,
+            // OTP fields
+            'otp' => $otp ? Hash::make($otp) : null,
+            'otp_expires_at' => $otp ? Carbon::now()->addMinutes(5) : null,
+            'is_verified' => ($role->id === 5) ? false : true,
+            'otp_last_sent_at' => $otp ? now() : null,
+
         ]);
+
+        // / IF ROLE 5 → SEND OTP, DO NOT RETURN TOKEN YET
+        if ($role->id === 5) {
+            try {
+                Mail::send('emails.otp', [
+                    'otp' => $otp,
+                    'user' => $user,
+                ], function ($message) use ($user) {
+                    $message->to($user->email);
+                    $message->subject('Your OTP Code');
+                });
+
+                return response()->json([
+                    'message' => 'OTP sent to email',
+                    'user_id' => $user->id,
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'error' => 'Failed to send OTP',
+                    'debug' => $e->getMessage(),
+                ], 500);
+            }
+        }
 
         $token = JWTAuth::fromUser($user);
 
@@ -70,6 +103,102 @@ class AuthController extends Controller
         }
 
         return response()->json(compact('user', 'token'));
+    }
+
+    public function verifyOtp(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'otp' => 'required',
+        ]);
+
+        $user = User::find($request->user_id);
+
+        if (! Hash::check($request->otp, $user->otp)) {
+            return response()->json(['error' => 'Invalid OTP'], 400);
+        }
+
+        if (now()->gt($user->otp_expires_at)) {
+            return response()->json(['error' => 'OTP expired'], 400);
+        }
+
+        $user->update([
+            'is_verified' => true,
+            'otp' => null,
+            'otp_expires_at' => null,
+        ]);
+
+        $token = JWTAuth::fromUser($user);
+
+        return response()->json([
+            'message' => 'Verified successfully',
+            'token' => $token,
+            'user' => $user,
+        ]);
+    }
+
+    public function resendOtp(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        $user = User::find($request->user_id);
+
+        // Only allow for role 5
+        if ($user->role_id !== 5) {
+            return response()->json(['error' => 'OTP not applicable'], 400);
+        }
+
+        // Already verified?
+        if ($user->is_verified) {
+            return response()->json(['error' => 'User already verified'], 400);
+        }
+
+        // Cooldown check (60 seconds)
+        // if ($user->otp_last_sent_at && now()->diffInSeconds($user->otp_last_sent_at) < 60) {
+        //     $elapsed = now()->diffInSeconds($user->otp_last_sent_at);
+        //     $remaining = max(0, 60 - (int) $elapsed);
+
+        //     $minutes = floor($remaining / 60);
+        //     $seconds = $remaining % 60;
+
+        //     $formatted = sprintf('%02d:%02d', $minutes, $seconds);
+
+        //     return response()->json([
+        //         'error' => "Please wait {$formatted} before requesting again",
+        //         'remaining_seconds' => $remaining,
+        //         'remaining_time' => $formatted,
+        //     ], 429);
+        // }
+
+        // Generate new OTP
+        $otp = rand(100000, 999999);
+
+        $user->update([
+            'otp' => $otp ? Hash::make($otp) : null,
+            'otp_expires_at' => Carbon::now()->addMinutes(5),
+            'otp_last_sent_at' => now(),
+        ]);
+
+        try {
+            Mail::send('emails.otp', [
+                'otp' => $otp,
+                'user' => $user,
+            ], function ($message) use ($user) {
+                $message->to($user->email);
+                $message->subject('Your New OTP Code');
+            });
+
+            return response()->json([
+                'message' => 'OTP resent successfully',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to send OTP',
+                'debug' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // bus trackker login
@@ -263,6 +392,46 @@ class AuthController extends Controller
 
         // Retrieve authenticated user
         $user = JWTAuth::setToken($token)->toUser();
+
+        // 🔥 OTP verification check ONLY for role 5
+        if ($user->role_id == 5 && ! $user->is_verified) {
+
+            // Generate new OTP
+            $otp = rand(100000, 999999);
+
+            $user->update([
+                'otp' => $otp ? Hash::make($otp) : null,
+                'otp_expires_at' => Carbon::now()->addMinutes(5),
+                'otp_last_sent_at' => now(),
+            ]);
+
+            try {
+                Mail::send('emails.otp', [
+                    'otp' => $otp,
+                    'user' => $user,
+                ], function ($message) use ($user) {
+                    $message->to($user->email);
+                    $message->subject('Your New OTP Code');
+                });
+
+                return response()->json([
+                    'error' => 'Please verify your email OTP before logging in.',
+                    'requires_verification' => true,
+                    'user_id' => $user->id,
+                ], 403);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'error' => 'Failed to send OTP',
+                    'debug' => $e->getMessage(),
+                ], 500);
+            }
+
+            // return response()->json([
+            //     'error' => 'Please verify your email OTP before logging in.',
+            //     'requires_verification' => true,
+            //     'user_id' => $user->id,
+            // ], 403);
+        }
 
         // Check for active driver on same bus
         if ($user->role_id == 4) {
